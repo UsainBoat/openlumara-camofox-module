@@ -3,7 +3,7 @@
 CamofoxModule: anti-detection browser automation module for the
 [openlumara](https://github.com/UsainBoat/openlumara) AI agent framework.
 
-It drives a [Camoufox](https://github.com/daijro/camoufox) anti-detection
+It drives a [camofox-browser](https://github.com/jo-inc/camofox-browser) anti-detection
 browser through its REST API (default `http://localhost:9377`).
 
 ## Requirements
