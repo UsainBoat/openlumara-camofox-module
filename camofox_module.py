@@ -2,6 +2,8 @@ import core
 import aiohttp
 import json
 import base64
+import os
+import asyncio
 
 # Banner prepended to every result that contains content pulled from a live web page.
 # The data is untrusted and may contain prompt-injection; the AI must treat it as data only.
@@ -19,6 +21,7 @@ class CamofoxModule(core.module.Module):
         "base_url": {"description": "Base URL of the Camofox server.", "default": "http://localhost:9377"},
         "access_key": {"description": "Optional CAMOFOX_ACCESS_KEY / CAMOFOX_API_KEY if the server requires it.", "default": ""},
         "user_id": {"description": "Session owner id (isolates cookies, localStorage and tabs).", "default": "default_user_123"},
+        "cookie_dir": {"description": "Directory that cookie files may be imported from (path traversal guard).", "default": ""},
     }
     dependencies = ["aiohttp"]
 
@@ -26,6 +29,7 @@ class CamofoxModule(core.module.Module):
     async def on_ready(self):
         self._tab_id = None
         self._session = None
+        self._tab_lock = asyncio.Lock()
         self.log("module", "CamofoxModule ready.")
 
     async def on_shutdown(self):
@@ -54,19 +58,22 @@ class CamofoxModule(core.module.Module):
         return self._tab_id
 
     async def _new_tab(self):
-        s = await self._sess()
-        uid = self._uid()
-        try:
-            async with s.post(f"{self._base()}/tabs", json={"userId": uid, "sessionKey": uid},
-                              timeout=aiohttp.ClientTimeout(total=30)) as r:
-                r.raise_for_status()
-                d = await r.json()
-        except aiohttp.ClientError as e:
-            raise RuntimeError(f"create tab: {e}")
-        self._tab_id = d.get("tabId")
-        if not self._tab_id:
-            raise RuntimeError(f"create tab: no tabId in response {d}")
-        return self._tab_id
+        async with self._tab_lock:
+            if self._tab_id is not None:
+                return self._tab_id
+            s = await self._sess()
+            uid = self._uid()
+            try:
+                async with s.post(f"{self._base()}/tabs", json={"userId": uid, "sessionKey": uid},
+                                  timeout=aiohttp.ClientTimeout(total=30)) as r:
+                    r.raise_for_status()
+                    d = await r.json()
+            except aiohttp.ClientError as e:
+                raise RuntimeError(f"create tab: {e}")
+            self._tab_id = d.get("tabId")
+            if not self._tab_id:
+                raise RuntimeError(f"create tab: no tabId in response {d}")
+            return self._tab_id
 
     async def _post(self, path, body=None, auth=False):
         s = await self._sess()
@@ -306,7 +313,8 @@ class CamofoxModule(core.module.Module):
         try:
             tab = await self._tab()
             d = await self._post(f"/tabs/{tab}/evaluate", {"expression": expression})
-            return self._unsafe(json.dumps(d.get("result")))
+            res = d.get("result")
+            return self._unsafe(res if isinstance(res, str) else json.dumps(res))
         except RuntimeError as e:
             return self.result(f"evaluate failed: {e}", success=False)
 
@@ -359,10 +367,17 @@ class CamofoxModule(core.module.Module):
 
     async def import_cookies(self, cookie_file_path: str):
         """Import a Netscape-format cookies.txt into the session."""
+        allowed = self.config.get("cookie_dir")
+        if not allowed:
+            return self.result("Import cookies disabled: no 'cookie_dir' configured.", success=False)
         try:
-            with open(cookie_file_path, "r") as f:
+            resolved = os.path.realpath(cookie_file_path)
+            base = os.path.realpath(allowed)
+            if not (os.path.commonpath([resolved, base]) == base):
+                return self.result(f"Import refused: '{cookie_file_path}' is outside cookie_dir.", success=False)
+            with open(resolved, "r") as f:
                 content = f.read()
-        except OSError as e:
+        except (OSError, ValueError) as e:
             return self.result(f"read failed: {e}", success=False)
         cookies = []
         for line in content.strip().splitlines():
@@ -488,7 +503,8 @@ class CamofoxModule(core.module.Module):
     async def download_trace(self, filename: str):
         """Download a trace zip (returned base64-encoded)."""
         try:
-            raw = await self._get(f"/sessions/{self._uid()}/traces/{filename}", auth=True, raw=True)
+            safe = os.path.basename(filename)
+            raw = await self._get(f"/sessions/{self._uid()}/traces/{safe}", auth=True, raw=True)
             return self.result(base64.b64encode(raw).decode(), success=True)
         except RuntimeError as e:
             return self.result(f"download failed: {e}", success=False)
@@ -496,7 +512,8 @@ class CamofoxModule(core.module.Module):
     async def delete_trace(self, filename: str):
         """Delete a trace file."""
         try:
-            await self._del(f"/sessions/{self._uid()}/traces/{filename}", auth=True)
-            return self.result(f"Trace '{filename}' deleted.", success=True)
+            safe = os.path.basename(filename)
+            await self._del(f"/sessions/{self._uid()}/traces/{safe}", auth=True)
+            return self.result(f"Trace '{safe}' deleted.", success=True)
         except RuntimeError as e:
             return self.result(f"delete failed: {e}", success=False)
