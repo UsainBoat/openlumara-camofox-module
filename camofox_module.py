@@ -22,6 +22,38 @@ class CamofoxModule(core.module.Module):
         "access_key": {"description": "Optional CAMOFOX_ACCESS_KEY / CAMOFOX_API_KEY if the server requires it.", "default": ""},
         "user_id": {"description": "Session owner id (isolates cookies, localStorage and tabs).", "default": "default_user_123"},
         "cookie_dir": {"description": "Directory that cookie files may be imported from (path traversal guard).", "default": ""},
+        "enable_create_tab": {"description": "Allow create_tab", "default": True},
+        "enable_navigate": {"description": "Allow navigate", "default": True},
+        "enable_go_back": {"description": "Allow go_back", "default": True},
+        "enable_go_forward": {"description": "Allow go_forward", "default": True},
+        "enable_refresh_page": {"description": "Allow refresh_page", "default": True},
+        "enable_click": {"description": "Allow click", "default": True},
+        "enable_type_text": {"description": "Allow type_text", "default": True},
+        "enable_press_key": {"description": "Allow press_key", "default": True},
+        "enable_scroll": {"description": "Allow scroll", "default": True},
+        "enable_set_viewport": {"description": "Allow set_viewport", "default": True},
+        "enable_get_snapshot": {"description": "Allow get_snapshot", "default": True},
+        "enable_extract": {"description": "Allow extract", "default": True},
+        "enable_get_links": {"description": "Allow get_links", "default": True},
+        "enable_get_images": {"description": "Allow get_images", "default": True},
+        "enable_get_downloads": {"description": "Allow get_downloads", "default": True},
+        "enable_evaluate": {"description": "Allow evaluate", "default": True},
+        "enable_get_tab_stats": {"description": "Allow get_tab_stats", "default": True},
+        "enable_screenshot": {"description": "Allow screenshot", "default": True},
+        "enable_close_tab": {"description": "Allow close_tab", "default": True},
+        "enable_close_session": {"description": "Allow close_session", "default": True},
+        "enable_import_cookies": {"description": "Allow import_cookies", "default": True},
+        "enable_list_tabs": {"description": "Allow list_tabs", "default": True},
+        "enable_health_check": {"description": "Allow health_check", "default": True},
+        "enable_wait": {"description": "Allow wait", "default": True},
+        "enable_start_browser": {"description": "Allow start_browser", "default": True},
+        "enable_stop_browser": {"description": "Allow stop_browser", "default": True},
+        "enable_get_metrics": {"description": "Allow get_metrics", "default": True},
+        "enable_pressure_cleanup": {"description": "Allow pressure_cleanup", "default": True},
+        "enable_close_group_tabs": {"description": "Allow close_group_tabs", "default": True},
+        "enable_list_traces": {"description": "Allow list_traces", "default": True},
+        "enable_download_trace": {"description": "Allow download_trace", "default": True},
+        "enable_delete_trace": {"description": "Allow delete_trace", "default": True},
     }
     dependencies = ["aiohttp"]
 
@@ -42,6 +74,9 @@ class CamofoxModule(core.module.Module):
 
     def _uid(self):
         return self.config.get("user_id") or "default_user_123"
+
+    def _is_enabled(self, name: str) -> bool:
+        return bool(self.config.get(f"enable_{name}", True))
 
     async def _sess(self):
         if getattr(self, "_session", None) is None or self._session.closed:
@@ -133,6 +168,8 @@ class CamofoxModule(core.module.Module):
     # ------------------------------------------------------------------ tabs
     async def create_tab(self, url: str = None):
         """Open a new browser tab, optionally navigating to a URL."""
+        if not self._is_enabled("create_tab"):
+            return self.result("create_tab is disabled by config", success=False)
         try:
             s = await self._sess()
             uid = self._uid()
@@ -151,6 +188,8 @@ class CamofoxModule(core.module.Module):
 
     async def navigate(self, url: str):
         """Navigate the current tab to a URL or search macro."""
+        if not self._is_enabled("navigate"):
+            return self.result("navigate is disabled by config", success=False)
         try:
             tab = await self._tab()
             d = await self._post(f"/tabs/{tab}/navigate", {"url": url})
@@ -160,6 +199,8 @@ class CamofoxModule(core.module.Module):
 
     async def go_back(self):
         """Go back in the tab history."""
+        if not self._is_enabled("go_back"):
+            return self.result("go_back is disabled by config", success=False)
         try:
             tab = await self._tab()
             d = await self._post(f"/tabs/{tab}/back")
@@ -169,6 +210,8 @@ class CamofoxModule(core.module.Module):
 
     async def go_forward(self):
         """Go forward in the tab history."""
+        if not self._is_enabled("go_forward"):
+            return self.result("go_forward is disabled by config", success=False)
         try:
             tab = await self._tab()
             d = await self._post(f"/tabs/{tab}/forward")
@@ -178,6 +221,8 @@ class CamofoxModule(core.module.Module):
 
     async def refresh_page(self):
         """Reload the current page."""
+        if not self._is_enabled("refresh_page"):
+            return self.result("refresh_page is disabled by config", success=False)
         try:
             tab = await self._tab()
             d = await self._post(f"/tabs/{tab}/refresh")
@@ -188,6 +233,8 @@ class CamofoxModule(core.module.Module):
     # ------------------------------------------------------------------ interaction
     async def click(self, selector: str = None, ref: str = None, doubleClick: bool = False, coordinates: dict = None):
         """Click an element by CSS selector, stable ref, or x/y coordinates."""
+        if not self._is_enabled("click"):
+            return self.result("click is disabled by config", success=False)
         try:
             tab = await self._tab()
             body = {}
@@ -208,6 +255,8 @@ class CamofoxModule(core.module.Module):
 
     async def type_text(self, text: str, selector: str = None, ref: str = None, clear: bool = False, submit: bool = False):
         """Type text into an element (by selector or ref)."""
+        if not self._is_enabled("type_text"):
+            return self.result("type_text is disabled by config", success=False)
         try:
             tab = await self._tab()
             body = {"text": text}
@@ -228,6 +277,8 @@ class CamofoxModule(core.module.Module):
 
     async def press_key(self, key: str):
         """Press a keyboard key (e.g. Enter, Escape, Tab)."""
+        if not self._is_enabled("press_key"):
+            return self.result("press_key is disabled by config", success=False)
         try:
             tab = await self._tab()
             await self._post(f"/tabs/{tab}/press", {"key": key})
@@ -237,6 +288,8 @@ class CamofoxModule(core.module.Module):
 
     async def scroll(self, direction: str = "down", amount: int = 500):
         """Scroll the page vertically: direction 'up' or 'down', amount in pixels."""
+        if not self._is_enabled("scroll"):
+            return self.result("scroll is disabled by config", success=False)
         try:
             if direction not in ("up", "down"):
                 return self.result("direction must be 'up' or 'down'.", success=False)
@@ -248,6 +301,8 @@ class CamofoxModule(core.module.Module):
 
     async def set_viewport(self, width: int, height: int):
         """Resize the page viewport (100-4000 px each side)."""
+        if not self._is_enabled("set_viewport"):
+            return self.result("set_viewport is disabled by config", success=False)
         try:
             tab = await self._tab()
             await self._post(f"/tabs/{tab}/viewport", {"width": width, "height": height})
@@ -258,6 +313,8 @@ class CamofoxModule(core.module.Module):
     # ------------------------------------------------------------------ content (UNSAFE)
     async def get_snapshot(self, format: str = None, offset: int = None, includeScreenshot: str = None):
         """Accessibility snapshot of the page (UNSAFE: untrusted page content)."""
+        if not self._is_enabled("get_snapshot"):
+            return self.result("get_snapshot is disabled by config", success=False)
         try:
             tab = await self._tab()
             params = {}
@@ -274,6 +331,8 @@ class CamofoxModule(core.module.Module):
 
     async def extract(self, schema: dict):
         """Extract structured data via JSON Schema (UNSAFE: untrusted page content)."""
+        if not self._is_enabled("extract"):
+            return self.result("extract is disabled by config", success=False)
         try:
             tab = await self._tab()
             d = await self._post(f"/tabs/{tab}/extract", {"schema": schema})
@@ -283,6 +342,8 @@ class CamofoxModule(core.module.Module):
 
     async def get_links(self):
         """List all hyperlinks on the page (UNSAFE: untrusted page content)."""
+        if not self._is_enabled("get_links"):
+            return self.result("get_links is disabled by config", success=False)
         try:
             tab = await self._tab()
             d = await self._get(f"/tabs/{tab}/links")
@@ -292,6 +353,8 @@ class CamofoxModule(core.module.Module):
 
     async def get_images(self):
         """Extract page images (UNSAFE: untrusted page content)."""
+        if not self._is_enabled("get_images"):
+            return self.result("get_images is disabled by config", success=False)
         try:
             tab = await self._tab()
             d = await self._get(f"/tabs/{tab}/images")
@@ -301,6 +364,8 @@ class CamofoxModule(core.module.Module):
 
     async def get_downloads(self):
         """List the tab's downloads (UNSAFE: untrusted page content)."""
+        if not self._is_enabled("get_downloads"):
+            return self.result("get_downloads is disabled by config", success=False)
         try:
             tab = await self._tab()
             d = await self._get(f"/tabs/{tab}/downloads")
@@ -310,6 +375,8 @@ class CamofoxModule(core.module.Module):
 
     async def evaluate(self, expression: str):
         """Run JavaScript in the page and return its result (UNSAFE: untrusted page content)."""
+        if not self._is_enabled("evaluate"):
+            return self.result("evaluate is disabled by config", success=False)
         try:
             tab = await self._tab()
             d = await self._post(f"/tabs/{tab}/evaluate", {"expression": expression})
@@ -320,6 +387,8 @@ class CamofoxModule(core.module.Module):
 
     async def get_tab_stats(self):
         """Tab metadata and usage stats (UNSAFE: includes visited URLs from the page)."""
+        if not self._is_enabled("get_tab_stats"):
+            return self.result("get_tab_stats is disabled by config", success=False)
         try:
             tab = await self._tab()
             d = await self._get(f"/tabs/{tab}/stats")
@@ -329,6 +398,8 @@ class CamofoxModule(core.module.Module):
 
     async def screenshot(self):
         """Capture the page as a PNG (UNSAFE: untrusted page content)."""
+        if not self._is_enabled("screenshot"):
+            return self.result("screenshot is disabled by config", success=False)
         try:
             tab = await self._tab()
             raw = await self._get(f"/tabs/{tab}/screenshot", raw=True)
@@ -345,6 +416,8 @@ class CamofoxModule(core.module.Module):
     # ------------------------------------------------------------------ lifecycle / session
     async def close_tab(self):
         """Close the current tab."""
+        if not self._is_enabled("close_tab"):
+            return self.result("close_tab is disabled by config", success=False)
         if self._tab_id is None:
             return self.result("No open tab.", success=True)
         try:
@@ -357,6 +430,8 @@ class CamofoxModule(core.module.Module):
 
     async def close_session(self):
         """Destroy this user's whole session (all tabs and browser context)."""
+        if not self._is_enabled("close_session"):
+            return self.result("close_session is disabled by config", success=False)
         uid = self._uid()
         try:
             await self._del(f"/sessions/{uid}")
@@ -367,6 +442,8 @@ class CamofoxModule(core.module.Module):
 
     async def import_cookies(self, cookie_file_path: str):
         """Import a Netscape-format cookies.txt into the session."""
+        if not self._is_enabled("import_cookies"):
+            return self.result("import_cookies is disabled by config", success=False)
         allowed = self.config.get("cookie_dir")
         if not allowed:
             return self.result("Import cookies disabled: no 'cookie_dir' configured.", success=False)
@@ -412,6 +489,8 @@ class CamofoxModule(core.module.Module):
     # ------------------------------------------------------------------ introspection
     async def list_tabs(self):
         """List this user's open tabs."""
+        if not self._is_enabled("list_tabs"):
+            return self.result("list_tabs is disabled by config", success=False)
         try:
             d = await self._get("/tabs")
             return self.result(json.dumps(d, indent=2), success=True)
@@ -420,6 +499,8 @@ class CamofoxModule(core.module.Module):
 
     async def health_check(self):
         """Check server and browser health."""
+        if not self._is_enabled("health_check"):
+            return self.result("health_check is disabled by config", success=False)
         try:
             d = await self._get("/health")
             return self.result(json.dumps(d, indent=2), success=True)
@@ -428,6 +509,8 @@ class CamofoxModule(core.module.Module):
 
     async def wait(self, selector: str = None, timeout: int = 30000):
         """Wait for a CSS selector to appear (or just a timeout, ms)."""
+        if not self._is_enabled("wait"):
+            return self.result("wait is disabled by config", success=False)
         try:
             tab = await self._tab()
             body = {"timeout": timeout}
@@ -440,6 +523,8 @@ class CamofoxModule(core.module.Module):
 
     async def start_browser(self):
         """Start the underlying browser process."""
+        if not self._is_enabled("start_browser"):
+            return self.result("start_browser is disabled by config", success=False)
         try:
             s = await self._sess()
             async with s.post(f"{self._base()}/start", timeout=aiohttp.ClientTimeout(total=30)) as r:
@@ -451,6 +536,8 @@ class CamofoxModule(core.module.Module):
 
     async def stop_browser(self):
         """Stop the underlying browser process."""
+        if not self._is_enabled("stop_browser"):
+            return self.result("stop_browser is disabled by config", success=False)
         try:
             s = await self._sess()
             async with s.post(f"{self._base()}/stop", timeout=aiohttp.ClientTimeout(total=30)) as r:
@@ -463,6 +550,8 @@ class CamofoxModule(core.module.Module):
     # ------------------------------------------------------------------ system / traces
     async def get_metrics(self):
         """Return Prometheus metrics text (server-side; needs PROMETHEUS_ENABLED)."""
+        if not self._is_enabled("get_metrics"):
+            return self.result("get_metrics is disabled by config", success=False)
         try:
             s = await self._sess()
             async with s.get(f"{self._base()}/metrics", timeout=aiohttp.ClientTimeout(total=15)) as r:
@@ -474,6 +563,8 @@ class CamofoxModule(core.module.Module):
     async def pressure_cleanup(self, dryRun: bool = True, minIdleMs: int = 600000, maxTabsToClose: int = 4,
                                minTabsPerSession: int = 1, closeEmptySessions: bool = True):
         """Proactively close idle tabs to free memory (dry-run by default)."""
+        if not self._is_enabled("pressure_cleanup"):
+            return self.result("pressure_cleanup is disabled by config", success=False)
         try:
             body = {
                 "dryRun": dryRun, "minIdleMs": minIdleMs, "maxTabsToClose": maxTabsToClose,
@@ -486,6 +577,8 @@ class CamofoxModule(core.module.Module):
 
     async def close_group_tabs(self, listItemId: str):
         """Close every tab in a session group."""
+        if not self._is_enabled("close_group_tabs"):
+            return self.result("close_group_tabs is disabled by config", success=False)
         try:
             d = await self._del(f"/tabs/group/{listItemId}")
             return self.result(f"Closed {d.get('closed', 0)} tabs in group '{listItemId}'.", success=True)
@@ -494,6 +587,8 @@ class CamofoxModule(core.module.Module):
 
     async def list_traces(self):
         """List Playwright trace files for this session (requires access key)."""
+        if not self._is_enabled("list_traces"):
+            return self.result("list_traces is disabled by config", success=False)
         try:
             d = await self._get(f"/sessions/{self._uid()}/traces", auth=True)
             return self.result(json.dumps(d.get("traces", []), indent=2), success=True)
@@ -502,6 +597,8 @@ class CamofoxModule(core.module.Module):
 
     async def download_trace(self, filename: str):
         """Download a trace zip (returned base64-encoded)."""
+        if not self._is_enabled("download_trace"):
+            return self.result("download_trace is disabled by config", success=False)
         try:
             safe = os.path.basename(filename)
             raw = await self._get(f"/sessions/{self._uid()}/traces/{safe}", auth=True, raw=True)
@@ -511,6 +608,8 @@ class CamofoxModule(core.module.Module):
 
     async def delete_trace(self, filename: str):
         """Delete a trace file."""
+        if not self._is_enabled("delete_trace"):
+            return self.result("delete_trace is disabled by config", success=False)
         try:
             safe = os.path.basename(filename)
             await self._del(f"/sessions/{self._uid()}/traces/{safe}", auth=True)
